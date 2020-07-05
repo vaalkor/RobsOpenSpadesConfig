@@ -1,0 +1,55 @@
+name = 'chess'
+version = '1.0'
+author = 'Dany0'
+description = 'Chess, have fun!'
+extensions = { 'water_damage' : 200}
+
+# script
+from pyspades.constants import *
+import random
+
+def get_entity_location(team, entity_id):
+    if entity_id == BLUE_FLAG:
+        x, y, z = random.randrange(254, 257), random.randrange(254, 257), 58
+        return (x, y, z)
+    if entity_id == GREEN_FLAG:
+        x, y, z = random.randrange(254, 257), random.randrange(254, 257), 58
+        return (x, y, z)
+    if entity_id == BLUE_BASE:
+        x, y, z = random.randrange(213, 214), random.randrange(254, 257), 58
+        return (x, y, z)
+    if entity_id == GREEN_BASE:
+        x, y, z = random.randrange(296, 297), random.randrange(254, 257), 58
+        return (x, y, z)
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x1 = random.randrange(199,221)
+        y1 = random.randrange(290,312)
+        z1 = connection.team.protocol.map.get_z(x1, y1)
+        x2 = random.randrange(192,198)
+        y2 = random.randrange(313,319)
+        z2 = connection.team.protocol.map.get_z(x2, y2)
+        x3 = random.randrange(221,222)
+        y3 = random.randrange(222,223)
+        z3 = connection.team.protocol.map.get_z(x3, y3)
+        x4 = random.randrange(213, 214)
+        y4 = random.randrange(254, 257)
+        z4 = connection.team.protocol.map.get_z(x4, y4)
+        x, y, z = random.choice([(x1,y1,z1),(x2,y2,z2),(x3,y3,z3),(x4,y4,z4)])
+        return (x, y, z-1)
+    if connection.team is connection.protocol.green_team:
+        x1 = random.randrange(289,311)
+        y1 = random.randrange(200,222)
+        z1 = connection.team.protocol.map.get_z(x1, y1)
+        x2 = random.randrange(312,318)
+        y2 = random.randrange(193,199)
+        z2 = connection.team.protocol.map.get_z(x2, y2)
+        x3 = random.randrange(288,289)
+        y3 = random.randrange(289,290)
+        z3 = connection.team.protocol.map.get_z(x3, y3)
+        x4 = random.randrange(296, 297)
+        y4 = random.randrange(254, 257)
+        z4 = connection.team.protocol.map.get_z(x4, y4)
+        x, y, z = random.choice([(x1,y1,z1),(x2,y2,z2),(x3,y3,z3),(x4,y4,z4)])
+        return (x, y, z-2)

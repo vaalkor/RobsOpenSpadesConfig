@@ -1,0 +1,5 @@
+name = 'Isle of war'
+version = '1.0'
+author = 'Chuck'
+description = 'The map of rainbows and unicorns!'
+extensions = { 'water_damage' : 10}

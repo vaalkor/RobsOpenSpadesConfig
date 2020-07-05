@@ -1,0 +1,43 @@
+name = 'ambassy'
+version = '1.0'
+author = 'Dany0'
+description = 'HOLY SHIT DANY MADE A CITY MAP.'
+extensions = { 'water_damage' : 200}
+
+# script
+from pyspades.constants import *
+import random
+
+def get_entity_location(team, entity_id):
+    if entity_id == BLUE_FLAG:
+        x, y, z = 273, 240, 60
+        return (x, y, z)
+    if entity_id == GREEN_FLAG:
+        x, y, z = 295, 240, 60
+        return (x, y, z)
+    if entity_id == BLUE_BASE:
+        x, y, z = 271, 240, 61
+        return (x, y, z)
+    if entity_id == GREEN_BASE:
+        x, y, z = 296, 240, 61
+        return (x, y, z)
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x1 = random.randrange(310,338)
+        y1 = random.randrange(155,205)
+        z1 = connection.team.protocol.map.get_z(x1, y1)
+        x2 = random.randrange(214,274)
+        y2 = random.randrange(296,333)
+        z2 = connection.team.protocol.map.get_z(x2, y2)
+        x, y, z = random.choice([(x1,y1,z1),(x2,y2,z2)])
+        return (x, y, z-1)
+    if connection.team is connection.protocol.green_team:
+        x1 = random.randrange(308,348)
+        y1 = random.randrange(271,296)
+        z1 = connection.team.protocol.map.get_z(x1, y1)
+        x2 = random.randrange(236,277)
+        y2 = random.randrange(156,170)
+        z2 = connection.team.protocol.map.get_z(x2, y2)
+        x, y, z = random.choice([(x1,y1,z1),(x2,y2,z2)])
+        return (x, y, z-2)

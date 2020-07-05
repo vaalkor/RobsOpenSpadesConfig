@@ -1,0 +1,82 @@
+name = 'Classigen'
+version = '1.0'
+author = 'Tom Dobrowolski'
+description = ('Classic generated maps')
+
+from feature_server.scripts.avx import AVX
+import json
+import random
+from pyspades.common import make_color
+
+def gen_script(basename, seed):
+    from pyspades.mapmaker import generate_classic
+    import time
+    vxl = generate_classic(time.time())
+
+
+
+    def build(px, py, pz, structure,default_color = (0,0,0)):  
+        if isinstance(structure, dict):
+            structure = structure.iteritems()
+        for xyz, color in structure:
+            x, y, z = xyz
+            rz = z
+            x, y, z = x + px, y + py, z + pz
+            #add support in case it hangs in air
+            wz = z
+            if ((rz == 0 or rz == -1) and wz <= 62):
+                while True:
+                    wz += 1
+                    if vxl.get_solid(x, y, wz) or wz >= 63:
+                        break
+                    rcolor = vxl.get_color(x,y,vxl.get_z(x,y))
+                    if rcolor is not None:
+                        vxl.set_point(x,y,wz,rcolor)
+            vxl.set_point(x, y, z, color or default_color)
+
+    def rotate_all(dct, fm, to):
+        amt = (to - fm) % 4
+        if amt == 0:
+            rot = lambda t: t
+        elif amt == 1:
+            rot = lambda t: (-t[1],  t[0]) + t[2:]
+        elif amt == 2:
+            rot = lambda t: (-t[0], -t[1]) + t[2:]
+        elif amt == 3:
+            rot = lambda t: ( t[1], -t[0]) + t[2:]
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield rot(k), v
+
+    def shift_origin(dct, new_origin):
+        new_origin = tuple(new_origin)
+        shift = lambda tpl: tuple(a-b for a,b in zip(tpl, new_origin))
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield shift(k), v
+
+    def load(fname):
+        structure_settings = json.load(open('./qb/' + fname + '.avx.txt', 'r'))
+        structure = AVX.fromfile('./qb/' + fname + '.avx')
+        structuredict = structure.tosparsedict()
+        structuredict = dict(shift_origin(structuredict, structure_settings['origin']))
+        return structuredict, structure.size_x, structure.size_y, structure.size_z
+
+    tree = load('tree1')
+##    boat = load('boat')
+    for x in xrange(1, 511,16):
+        for y in xrange(1, 511, 16):
+            px = random.randint(x, x + 16)
+            py = random.randint(y, y + 16)
+            skip = random.randint(2,7)
+            for n in xrange(0,12,skip):
+                px, py = px + n, py + n
+                pz = vxl.get_z(px,py)
+                if pz < 61 and random.choice((True,False)):
+                    build(((px>>1)<<1) + py % 2  , py, pz - random.randint(0,3), tree[0], (255,0,234))
+##                    
+##                if pz >=62 and random.randint(0,10) == 10:
+##                    build(px, py,pz,boat[0], (255,255,255))
+    return vxl

@@ -1,0 +1,4 @@
+name = '20thCenturyTown'
+version = '1.0'
+author = 'Someone(and Dany0)'
+description = ('An MC map I had lying around, converted & stretched properly.')

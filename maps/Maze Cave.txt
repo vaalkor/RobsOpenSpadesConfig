@@ -1,0 +1,4 @@
+name = 'Maze Cave'
+version = '1.0'
+author = 'Pinky-Conehead'
+description = ('A big maze that spans across the map, where looking at the map won\'t do you any good.')

@@ -1,0 +1,4 @@
+name = 'Standoff'
+version = '1.0'
+author = 'TheGrandmaster'
+description = 'A larger island map, suitable for most sizes.'

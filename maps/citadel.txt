@@ -1,0 +1,4 @@
+name = 'citadel'
+version = '1.0'
+author = 'Pavanz'
+description = 

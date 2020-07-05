@@ -1,0 +1,226 @@
+name = 'PyspadesPlus'
+version = '0.91 Beta'
+author = 'Dany0'
+description = ('Randomly generated pyspades map.')
+
+from feature_server.scripts.avx import AVX
+import json
+import random
+from pyspades.common import make_color
+
+def gen_script(basename, seed):
+
+    from pyspades import mapmaker
+
+    # define the gradients
+
+    water = mapmaker.Gradient()
+    water.set_step_rgb(0, (65,73,119))
+    water.hsb(1, (127,17,21), 16, (120,16,22))
+    water.hsb(16, (102,19,21), 64, (87,18,19))
+
+    # define biomes (gradient + avg. height infos)
+
+    island_biome = mapmaker.Biome(water, 0.97, -0.1, 0.02)
+##    island_biome.structures = [(bunker_spawner, load('bunker'), (1.0, 5, 10))]
+    spawn_biome = mapmaker.Biome(water, 0.5, 1, 1)
+    water_biome = mapmaker.Biome(water, 1.2, -0.16, 0.04)
+##    water_biome.structures = [(logo_spawner, load('pyspades'), (1.0, 5, 10))]
+    
+
+    # biome map - tiled biome instances
+
+    biome_list = [island_biome, water_biome, spawn_biome]
+    bmap = mapmaker.BiomeMap(biome_list,32,32)
+
+    
+    
+    # predefined points to force a similar general character of map
+    for x in xrange(0, bmap.width):
+        for y in xrange(0, bmap.height):
+            bmap.set_repeat(x,y,water_biome)
+    points = [(8 ,5, island_biome),    (22, 4, island_biome),
+              (28, 6, island_biome),   (15, 10, island_biome),
+              (22, 11, island_biome),  (27, 11, island_biome),
+              (2, 15, island_biome),   (31, 15, island_biome),
+              (12, 15, island_biome),  (16, 14, island_biome),
+              (19, 7, island_biome),   (14, 19, island_biome),
+              (19, 18, island_biome),  (27, 18, island_biome),
+              (8, 26, island_biome),   (20, 24, island_biome),
+              (28, 28, island_biome),  (31, 2, island_biome),
+              (12, 32, island_biome),  (22, 30, island_biome),
+              (25, 32, island_biome),  (10, 7, water_biome),
+              (17, 5, water_biome),  (15, 28, water_biome),
+              (30, 21, water_biome), (1, 25, water_biome),
+              (11, 8, island_biome), (18, 6, island_biome),
+              (14, 27, island_biome), (29, 20, island_biome),
+              (2, 24, island_biome), (16,16, spawn_biome),
+              (16,16, island_biome), (16,16, island_biome)]
+
+##    points.extend(bmap.random_points(64,water_biome,8,8,16,16))
+
+    for n in points:
+        x,y,b = n
+        extra = random.randint(0,4)
+        for v in xrange(-2 - extra,2 + extra):
+            bmap.set_repeat(x+v,y+v,b)
+    for n in xrange(0, 6):
+        bmap.set_repeat(2 + n, (bmap.height/2 - 3) + n, spawn_biome)
+        bmap.set_repeat(30 - n, (bmap.height/2 - 3) + n, spawn_biome)
+        bmap.set_repeat(16,16,spawn_biome)
+    for n in xrange(0,32,random.randint(1,4)):
+        bmap.set_repeat(n,16,island_biome)
+        bmap.set_repeat(16,16,spawn_biome)
+##    for n in xrange(0,31,4):
+##        points.append((n,31,water_biome))
+##        points.append((n,0,water_biome))
+##        points.append((31,n,water_biome))
+##        points.append((0,n,water_biome))
+##        points.append((n,n,water_biome))
+
+    bmap.jitter()
+    
+    # transform the biome map into a heightmap
+    
+    hmap, gradients = bmap.create_heightmap()
+    hmap.midpoint_displace(0.93,0.7868,4)
+    hmap.jitter_colors(10)
+
+
+    hmap.line_set(21,496,131,496,8,1.3) # clear land for the logo
+
+    for n in xrange (0,6):
+        hmap.smoothing()
+    ## I'm surprised averaging 6 times in a row did something
+    ## but then again, it makes the islands look more like
+    ## the pyspades map
+    
+    hmap.truncate()
+    hmap.rewrite_gradient_fill(gradients)
+    hmap.rgb_noise_colors(-2,2)
+    #hmap.smooth_colors()
+    
+    vxl = hmap.write_vxl()
+            
+
+    
+    def build(px, py, pz, structure, default_color, noise = 0, stick = False):
+        px = ((px>>1)<<1) + py % 2        
+        if isinstance(structure, dict):
+            structure = structure.iteritems()
+##        pz = int(hmap.get(px,py)*63)
+        buf_color = default_color
+        for xyz, color in structure:
+            x, y, z = xyz
+            x, y = x + px, y + py
+            if stick is True:
+                z += int(hmap.get(x + px,y + py)*63)
+            else:
+                z = z + pz
+            if noise > 0:
+                r, g, b = buf_color
+                r, g, b = (random.randint(r - noise, r + noise),
+                          random.randint(g - noise, g + noise),
+                          random.randint(b - noise, b + noise))
+                buf_color = r, g, b
+            #noise
+            vxl.set_point(x, y, z, color or buf_color)
+            if noise > 0:
+                buf_color = default_color
+            #if color is none, use default_color
+
+    def rotate_all(dct, fm, to):
+        amt = (to - fm) % 4
+        if amt == 0:
+            rot = lambda t: t
+        elif amt == 1:
+            rot = lambda t: (-t[1],  t[0]) + t[2:]
+        elif amt == 2:
+            rot = lambda t: (-t[0], -t[1]) + t[2:]
+        elif amt == 3:
+            rot = lambda t: ( t[1], -t[0]) + t[2:]
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield rot(k), v
+
+    def shift_origin(dct, new_origin):
+        new_origin = tuple(new_origin)
+        shift = lambda tpl: tuple(a-b for a,b in zip(tpl, new_origin))
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield shift(k), v
+
+    def load(fname):
+        structure_settings = json.load(open('./qb/' + fname + '.avx.txt', 'r'))
+        structure = AVX.fromfile('./qb/' + fname + '.avx').tosparsedict()
+        structure = dict(shift_origin(structure, structure_settings['origin']))
+        return structure
+
+##    tree1 = load('tree1')
+##    tree2 = load('tree2')
+##    structures = (tree1,tree2)
+
+##    i = 0
+##    w = 0
+##    amax = 22
+##    for x in xrange(32, bmap.width - 32):
+##        for y in xrange(32, bmap.height - 32):
+##                if bmap.get_repeat(x, y) is island_biome and random.randint(1,6) is 6 and int(hmap.get(x,y)*63) < 62:
+##                        grey_color = (random.randint(47,56),random.randint(47,56),random.randint(47,56))
+##                        if x < 256 and i <= amax:
+##                            i += 1
+##                            build(x,y,rotate_all(load('bunker'), 0, 1), grey_color)
+##                            hmap.line_set(x-3,y,x + 4,y,5,0.9)
+##                        elif x >= 256 and w <= amax:
+##                            w += 1
+##                            build(x,y,rotate_all(load('bunker'), 0, 3), grey_color)
+##                            hmap.line_set(x-3,y,x + 4,y,5,0.9)
+##                        else:
+##                            continue
+
+##    def bunker_spawner(structure, minx, miny, maxx, maxy,
+    bunker = load('bunker')
+    for x in xrange(0, bmap.width):
+        for y in xrange(0, bmap.height):
+            if bmap.get_repeat(x, y) is island_biome:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                if random.randint(1,6) is 6:
+                    px = random.randint(left,right)
+                    py = random.randint(top,bottom)
+                    pz = int(hmap.get(px,py)*63) + 2
+                    if px >= 256:
+                        rotate = 2
+                    else:
+                        rotate = 0
+                    if pz < 62:
+                        build( px, py, pz
+                            , rotate_all(bunker, 0, rotate) #rotate it different every time
+                            , (random.randint(47,56),random.randint(47,56),random.randint(47,56))
+                            , 2) 
+
+    build( 17, 500, int(hmap.get(20,500)*63) , rotate_all(load('pyspades'),0, 1), (0,0,0)) # make the logo
+
+##    for biome in biome_list:
+##        for spawner, structure, settings in biome.structures.iteritems():
+##            spawner(model, structure, *settings)
+
+##    island_biome.structures = {(1) : ('type'),(2) : ('type'), (3) : ('type')}
+##    water_biome.structures = {}
+##
+##    for biome in biome_list:
+##        if isinstance(biome.structures, dict):
+##            structure_list = biome.structures.iteritems()
+##        for structure, type in structure_list:
+##            model = structure[0]
+##            settings = structure[1]
+##            if type is 'tree':
+##                spawn_trees(model, *settings)
+##            elif type is 'bunker':
+##                spawn_bunkers(model, *settings)
+##            elif type is 'bush':
+##                spawn_bushes(model, *settings)
+
+    
+    return vxl

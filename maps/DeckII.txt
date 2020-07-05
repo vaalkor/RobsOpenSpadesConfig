@@ -1,0 +1,4 @@
+name = 'DeckII'
+version = '1.0'
+author = 'Serious_Sim'
+description = ('Two industrial storage complex are facing each other in the middle of the sea, linked trough two bottlenecks.\r\nThis is my second map, still using the classic Deck 17 Unreal Tournament arena to provide some nice interior warfare.')

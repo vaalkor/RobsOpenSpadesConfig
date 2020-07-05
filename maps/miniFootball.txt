@@ -1,0 +1,41 @@
+name = 'miniFootball'
+version = '1.0'
+author = 'Dany0'
+description = 'Mini football for everyone!.'
+extensions = { 'water_damage' : 200}
+
+# script
+from pyspades.constants import *
+import random
+
+def get_entity_location(team, entity_id):
+    if entity_id == BLUE_FLAG:
+        x, y, z = 256, 255, 36
+        return (x, y, z)
+    if entity_id == GREEN_FLAG:
+        x, y, z = 256, 256, 36
+        return (x, y, z)
+    if entity_id == GREEN_BASE:
+        x, y, z = 280, 256, 36
+        return (x, y, z)
+    if entity_id == BLUE_BASE:
+        x, y, z = 232, 256, 36
+        return (x, y, z)
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x = random.randrange(294,301)
+        y = random.randrange(246,253)
+        x2 = random.randrange(294,301)
+        y2 = random.randrange(258,265)
+        x3, y3 = random.choice([(x,y),(x2,y2)])
+        z3 = 35
+        return (x3, y3, z3-1)
+    if connection.team is connection.protocol.green_team:
+        x = random.randrange(210,217)
+        y = random.randrange(258,265)
+        x2 = random.randrange(210,217)
+        y2 = random.randrange(246,253)
+        x3, y3 = random.choice([(x,y),(x2,y2)])
+        z3 = 35
+        return (x3, y3, z3-1)

@@ -1,0 +1,4 @@
+name = 'ElAlamein'
+version = '0.1'
+author = 'Enari'
+description = ('The clasic Battlefield map')

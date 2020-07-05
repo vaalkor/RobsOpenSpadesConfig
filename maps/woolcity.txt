@@ -1,0 +1,60 @@
+name = 'WoolCity'
+version = '1.0'
+author = '->B.O.B.<-,Diaspora*,AlexeyPozn,KillerCookie,Isaac,Mittgfu,Dany0'
+description = ('A little city made in Minecraft, Qubicle Constructor and Microsoft Notepad')
+fog = (24, 24, 24)
+extensions = {
+     'arena': True,
+     'arena_blue_spawns' : ((337, 171, 42), (339, 168, 47), (326, 174, 42)),
+     'arena_green_spawns' : ((176, 339, 48), (174, 342, 53), (187, 336, 48)),
+     'arena_gates': ((177, 339, 44), (335, 171, 38)),
+     'boundary_damage' : {'left' : 165, 'right' : 346, 'top' : 161, 'bottom' : 351, 'damage': 100}
+}
+
+from pyspades.constants import *
+from pyspades.server import ServerConnection
+from random import choice
+
+# scripting
+
+def get_entity_location(team, entity_id):
+    if entity_id == BLUE_FLAG:
+        z = team.protocol.map.get_z(326, 181)
+        return (326, 181, z)
+    if entity_id == GREEN_FLAG:
+        z = team.protocol.map.get_z(187, 329)
+        return (410, 277, z)
+    if entity_id == BLUE_BASE:
+        return (331 ,177, 46)
+    if entity_id == GREEN_BASE:
+        return (182, 334, 52)
+	
+spawn_locations_blue = [
+(335, 172, 45),
+(338, 169, 37),
+(326, 173, 42),
+(338, 168, 58)
+]
+
+spawn_locations_green = [
+(177, 339, 50),
+(179, 339, 42),
+(187, 337, 48),
+(175, 345, 63)
+]
+
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x, y, z = choice(spawn_locations_blue)
+    elif connection.team is connection.protocol.green_team:
+        x, y, z = choice(spawn_locations_green)
+    z -= 2.4
+    # magic numbers
+    x += 0.5
+    y += 0.5
+    if connection.protocol.map.get_z(x, y) <= z:
+        # allows spawning lower if the ground is destroyed
+        return x, y, z
+    else:
+        return x, y, connection.protocol.map.get_z(x, y)

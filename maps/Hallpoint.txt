@@ -1,0 +1,4 @@
+name = 'PINPOINT HALLWAY'
+version = '1.0'
+author = 'CowNorris, Cowie'
+description = 'Yup. Pinpoint and Hallway slapped together.'

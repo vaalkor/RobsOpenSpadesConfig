@@ -1,0 +1,31 @@
+name = 'farmMill'
+version = '1.0'
+author = 'Dany0'
+description = 'Mill from Influxs market garden minimapped'
+extensions = { 'water_damage' : 200}
+
+# script
+from pyspades.constants import *
+import random
+
+def get_entity_location(team, entity_id):
+    if entity_id == BLUE_FLAG:
+        return (256, 288, 58)
+    if entity_id == GREEN_FLAG:
+        return (256, 226, 58)
+    if entity_id == BLUE_BASE:
+        return (256, 290, 58)
+    if entity_id == GREEN_BASE:
+        return (256, 224, 58)
+
+def get_spawn_location(connection):
+    if connection.team is connection.protocol.blue_team:
+        x2 = random.randrange(245,266)
+        y2 = random.randrange(289,299)
+        z2 = connection.protocol.map.get_z(x2, y2)
+        return (x2, y2, z2)
+    if connection.team is connection.protocol.green_team:
+        x3 = random.randrange(247,271)
+        y3 = random.randrange(216,224)
+        z3 = connection.protocol.map.get_z(x3, y3)
+        return (x3, y3, z3)

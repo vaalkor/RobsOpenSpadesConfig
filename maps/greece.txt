@@ -1,0 +1,377 @@
+name = 'Greece'
+version = '0.91 Beta'
+author = 'Dany0'
+description = ('Fucking amazing randomly generated greece map.')
+
+from feature_server.scripts.avx import AVX
+import json
+import random
+from pyspades.common import make_color
+
+def gen_script(basename, seed):
+
+    from pyspades import mapmaker
+
+    # define the gradients
+    
+    island = mapmaker.Gradient()
+    island.set_step_rgb(0, (27,55,227))
+    island.hsb(1, (57,14,60), 16, (77,27,58))
+    island.hsb(16, (77,11,51), 64, (0,0,64))
+    
+    water = mapmaker.Gradient()
+    water.set_step_rgb(0, (27,55,227))
+    water.hsb(1, (39,12,88), 16, (44,9,63))
+    water.hsb(16, (86,6,42), 64, (64,64,64))
+
+    # define biomes (gradient + avg. height infos)
+
+    island_biome = mapmaker.Biome(island, 0.97, -0.1, 0.02)
+##    island_biome.structures = [(bunker_spawner, load('bunker'), (1.0, 5, 10))]
+    spawn_biome = mapmaker.Biome(water, 0.6, -0.1, 0.04)
+    water_biome = mapmaker.Biome(water, 1.2, -0.16, 0.04)
+##    water_biome.structures = [(logo_spawner, load('pyspades'), (1.0, 5, 10))]
+    
+
+    # biome map - tiled biome instances
+
+    biome_list = [island_biome, water_biome, spawn_biome]
+    bmap = mapmaker.BiomeMap(biome_list,32,32)
+
+    
+    
+    # predefined points to force a similar general character of map
+    for x in xrange(0, bmap.width):
+        for y in xrange(0, bmap.height):
+            bmap.set_repeat(x,y,water_biome)
+    points = [(8 ,5, island_biome),    (22, 4, island_biome),
+              (28, 6, island_biome),   (15, 10, island_biome),
+              (22, 11, island_biome),  (27, 11, island_biome),
+              (2, 15, island_biome),   (31, 15, island_biome),
+              (12, 15, island_biome),  (16, 14, island_biome),
+              (19, 7, island_biome),   (14, 19, island_biome),
+              (19, 18, island_biome),  (27, 18, island_biome),
+              (8, 26, island_biome),   (20, 24, island_biome),
+              (28, 28, island_biome),  (31, 2, island_biome),
+              (12, 32, island_biome),  (22, 30, island_biome),
+              (25, 32, island_biome),  (10, 7, water_biome),
+              (17, 5, water_biome),  (15, 28, water_biome),
+              (30, 21, water_biome), (1, 25, water_biome),
+              (11, 8, island_biome), (18, 6, island_biome),
+              (14, 27, island_biome), (29, 20, island_biome),
+              (2, 24, island_biome), (16,16, spawn_biome),
+              (16,16, island_biome), (16,16, island_biome)]
+
+    for n in points:
+        x,y,b = n
+        extra = random.randint(0,4)
+        for v in xrange(-4 - extra,4 + extra):
+            bmap.set_repeat(x+v,y+v,b)
+    m = 6
+    for n in xrange(0, m):
+        for z in xrange(0,3):
+            bmap.set_repeat(2 + z, (bmap.height/2 - m/2) + n, spawn_biome)
+            bmap.set_repeat(30 - z, (bmap.height/2 - m/2) + n, spawn_biome)
+    for n in xrange(0,32,random.randint(1,2)):
+        bmap.set_repeat(n,16,island_biome)
+        bmap.set_repeat(16,16,island_biome)
+
+    bmap.jitter()   
+    # transform the biome map into a heightmap
+    
+    hmap, gradients = bmap.create_heightmap()
+    hmap.midpoint_displace(0.93,0.7868,4)
+    hmap.jitter_colors(10)
+
+    hmap.line_set(12,501,87,501,14,1.3) # clear land for the logo
+    hmap.line_set(96,481,151,481,9,1.3)
+
+    for n in xrange (0,8):
+        hmap.smoothing()
+        
+    hmap.truncate()
+    hmap.rewrite_gradient_fill(gradients)
+    hmap.rgb_noise_colors(-3,3)
+    hmap.smooth_colors()
+    
+    vxl = hmap.write_vxl()
+
+    wineries=[]
+              
+    def build(px, py, pz, structure, default_color = (127,127,127), noise = 0, stick = False, structural = True):  
+        if isinstance(structure, dict):
+            structure = structure.iteritems()
+        buf_color = default_color
+        for xyz, color in structure:
+            x, y, z = xyz
+            rz = z
+            x, y = x + px, y + py
+            if stick is True:
+                z += int(hmap.get(x,y)*63)
+            else:
+                z = z + pz
+            #noise
+            if noise > 0:
+                r, g, b = buf_color
+                r, g, b = (random.randint(r - noise, r + noise),
+                          random.randint(g - noise, g + noise),
+                          random.randint(b - noise, b + noise))
+                buf_color = r, g, b
+            #add support in case it hangs in air
+            wz = z
+            if ((rz == 0 or rz == -1) and wz <= 62) and structural:
+                while True:
+                    wz += 1
+                    if vxl.get_solid(x, y, wz) or wz >= 63:
+                        break
+                    rcolor = vxl.get_color(x,y,int(hmap.get(x,y)*63))
+                    if rcolor is not None:
+                        vxl.set_point(x,y,wz,rcolor)
+            vxl.set_point(x, y, z, color or buf_color)
+            if noise > 0:
+                buf_color = default_color
+            #if color is none, use default_color
+
+    def destroy(px,py,pz,structure):
+        if isinstance(structure, dict):
+            structure = structure.iteritems()
+        for xyz, color in structure:
+            x, y, z = xyz
+            x, y, z = x + px, y + py, z + pz
+            vxl.destroy_point(x,y,z)
+
+    def rect_destroy(x1,x2,y1,y2,z,h):
+        for n in xrange(x1,x2):
+            for r in xrange(y1,y2):
+                for d in xrange(z,z + h):
+                    vxl.destroy_point(n,r,d)
+
+    def spawn_winery(x,y,w,h):
+        wineries.append((x,y,w,h))
+        for n in xrange(64):
+            hx, hy = random.randint(x-w, x+w), random.randint(y-h,y + h)
+            hz = vxl.get_z(hx,hy)
+            if hz < 54:
+                break
+        green_set = [mapmaker.make_color(71,94,71),
+                 mapmaker.make_color(71,95,71),
+                 mapmaker.make_color(71,96,71),
+                 mapmaker.make_color(71,97,71),
+                 mapmaker.make_color(71,98,71),
+                 mapmaker.make_color(71,99,71),
+                 mapmaker.make_color(53,86,57),
+                 mapmaker.make_color(53,85,57),
+                 mapmaker.make_color(53,87,57),
+                 mapmaker.make_color(53,88,57),
+                 mapmaker.make_color(53,84,57)]
+        white = mapmaker.make_color(245,245,245)
+        for sy in xrange(y - h, y + h + 1):
+            a = random.randint(1,2)
+            for sx in xrange(x - w, x + w + 1):
+                green = random.choice(green_set)
+                sz = vxl.get_z(sx,sy)
+                if sz != 63:
+                    if sy % 2 == 0 and sz > 40 + random.randint(-5,5):
+                        vxl.set_column_fast(sx, sy, sz - a , sz , sz, green)
+                    if sx == x - w:
+                        sz = vxl.get_z(sx - 2,sy)
+                        vxl.set_column_fast(sx - 2, sy, sz - 2 , sz + 1 , sz + 1, white)
+                    elif sx == x + w:
+                        sz = vxl.get_z(sx + 2,sy)
+                        vxl.set_column_fast(sx + 2, sy, sz - 2 , sz + 1 , sz + 1, white)
+                    if sy == y - h:
+                        sz = vxl.get_z(sx,sy - 2)
+                        vxl.set_column_fast(sx, sy - 2, sz - 2 , sz + 1 , sz + 1, white)
+                    elif sy == y + h:
+                        sz = vxl.get_z(sx,sy + 2)
+                        vxl.set_column_fast(sx, sy + 2, sz - 2 , sz + 1 , sz + 1, white)
+        if hz < 54:
+            rect_destroy(hx -  4, hx + 1, hy , hy + 6, hz - 10, 14)
+            build(hx,hy,hz + 1,load('greecehouse')[0])
+
+
+    def rotate_all(dct, fm, to):
+        amt = (to - fm) % 4
+        if amt == 0:
+            rot = lambda t: t
+        elif amt == 1:
+            rot = lambda t: (-t[1],  t[0]) + t[2:]
+        elif amt == 2:
+            rot = lambda t: (-t[0], -t[1]) + t[2:]
+        elif amt == 3:
+            rot = lambda t: ( t[1], -t[0]) + t[2:]
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield rot(k), v
+
+    def shift_origin(dct, new_origin):
+        new_origin = tuple(new_origin)
+        shift = lambda tpl: tuple(a-b for a,b in zip(tpl, new_origin))
+        if isinstance(dct, dict):
+            dct = dct.iteritems()
+        for k,v in dct:
+            yield shift(k), v
+
+    def load(fname):
+        structure_settings = json.load(open('./qb/' + fname + '.avx.txt', 'r'))
+        structure = AVX.fromfile('./qb/' + fname + '.avx')
+        structuredict = structure.tosparsedict()
+        structuredict = dict(shift_origin(structuredict, structure_settings['origin']))
+        return structuredict, structure.size_x, structure.size_y, structure.size_z
+
+##    tree1 = load('tree1')
+##    tree2 = load('tree2')
+##    structures = (tree1,tree2)
+
+##    i = 0
+##    w = 0
+##    amax = 22
+##    for x in xrange(32, bmap.width - 32):
+##        for y in xrange(32, bmap.height - 32):
+##                if bmap.get_repeat(x, y) is island_biome and random.randint(1,6) is 6 and int(hmap.get(x,y)*63) < 62:
+##                        grey_color = (random.randint(47,56),random.randint(47,56),random.randint(47,56))
+##                        if x < 256 and i <= amax:
+##                            i += 1
+##                            build(x,y,rotate_all(load('bunker'), 0, 1), grey_color)
+##                            hmap.line_set(x-3,y,x + 4,y,5,0.9)
+##                        elif x >= 256 and w <= amax:
+##                            w += 1
+##                            build(x,y,rotate_all(load('bunker'), 0, 3), grey_color)
+##                            hmap.line_set(x-3,y,x + 4,y,5,0.9)
+##                        else:
+##                            continue
+
+##    def bunker_spawner(structure, minx, miny, maxx, maxy,
+
+
+    tree = load('tree1')
+    bush = load('bush')
+    boat = load('boat')
+    abunker = load('abunker')
+    port = load('port')
+    buoy = load('buoy')
+    parthenon = load('parthenon')
+##    from itertools import chain
+##    for attr, fmt in chain(AVX.fromfile('./qb/parthenon.avx').avx_magic, AVX.fromfile('./qb/parthenon.avx').avx_headers_ver[AVX.fromfile('./qb/parthenon.avx').ver]):
+##        print getattr(AVX.fromfile('./qb/parthenon.avx'), attr)
+    for x in xrange(0, bmap.width/2 + 2):
+        if len(wineries) < 10:
+            for y in xrange(1, bmap.height - 1):
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                bld = True
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                pz = int(hmap.get(px,py)*63)
+                for n in wineries:
+                    wx,wy,ww,wh = n
+                    if (px >= wx - ww and px < wx + ww) or (py >= wy - wh and py <= wy + wh):
+                        bld = False
+                        break
+                if bld:
+                    if pz < 54:
+                        spawn_winery(px,py + (py % 2) * 2,right - left + random.randint(-7,7),bottom - top + random.randint(-7,7))
+
+    for x in xrange(1, bmap.width - 1):
+        for y in xrange(1, bmap.height - 1):
+            if bmap.get_repeat(x, y) is not water_biome:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                if x <= 16:
+                    skip = random.randint(6,7)
+                else:
+                    skip = 2
+                for n in xrange(0,12,skip):
+                    px, py = px + n, py + n
+                    bld = True
+                    if x <= 16:
+                        for n in wineries:
+                            wx,wy,ww,wh = n
+                            for sx in xrange(wx - ww, wx + ww):
+                                for sy in xrange(wy - wh, wy + wh):
+                                    if not (sx == px and sy == py):
+                                        pz = int(hmap.get(px,py)*63)
+                                    else:
+                                        bld = False
+                    else:
+                        pz = int(hmap.get(px,py)*63)
+                        bld = True
+                    if pz < 61 and bld:
+                        build( ((px>>1)<<1) + py % 2 , py, pz - random.randint(0,3), tree[0]) 
+                    
+    for y in xrange(0, bmap.height):
+        for x in xrange(0, bmap.width):
+            if bmap.get_repeat(x + 1, y) is water_biome and bmap.get_repeat(x-1, y) is water_biome and bmap.get_repeat(x, y+ 1) is water_biome and bmap.get_repeat(x, y - 1) is water_biome:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                pz = int(hmap.get(px,py)*63)
+                if pz == 63 and random.randint(0,5) == 5:
+                    build(px,py,pz - 1,buoy[0],(0,0,0),0,False,False)
+            if bmap.get_repeat(x, y) is not water_biome:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                pz = int(hmap.get(px,py)*63)
+                if x > 16:
+                    rot = 2
+                elif x < 16:
+                    rot = 0
+                else:
+                    rot = random.randint(0,3)
+                if pz < 57:
+                    destroy(px , py, pz + 5, rotate_all(abunker[0],0,rot))
+
+    for x in xrange(1, bmap.width - 1):
+        for y in xrange(1, bmap.height - 1):
+            if bmap.get_repeat(x, y) is not water_biome:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                pz = int(hmap.get(px,py)*63)
+                if pz < 63:
+                    build( px, py, pz, rotate_all(bush[0],0, random.randint(0,4)), (53,96,57), 3)
+                if x <= 16 and pz == 62 and not vxl.get_solid(px + 7, py, 62):
+                    rect_destroy(px, px + 5, py - 9 , py + 11, pz - 5, 5)
+                    build(px,py,pz,port[0],(0,0,0),0,False,False)
+
+    for y in xrange(0, bmap.height):
+        for x in xrange(bmap.width/2 + random.randint(-4,4), bmap.width - 1, 2):
+            if random.randint(0,5) == 5:
+                left, top, right, bottom = bmap.rect_of_point(x,y)
+                px = random.randint(left,right)
+                py = random.randint(top,bottom)
+                pz = int(hmap.get(px,py)*63)
+                if pz >= 62:
+                    rect_destroy(px -  8, px + 2, py - 14 , py, pz - 8, 8)
+                    build(px, py, pz, rotate_all(boat[0],0,random.choice((0, 2, 3 ))), (0,0,0), 0, False, False)
+                elif y % 2 == 0 or y == 16:
+                    rect_destroy(px - 17, px , py - 17, py , pz - 15, 15)
+                    build(px,py,pz+3,parthenon[0])
+
+
+    build( 0, 503, int(hmap.get(20,500)*63) , rotate_all(load('greecelogo')[0],0,2)) # make the logo
+
+##    for biome in biome_list:
+##        for spawner, structure, settings in biome.structures.iteritems():
+##            spawner(model, structure, *settings)
+
+##    island_biome.structures = {(1) : ('type'),(2) : ('type'), (3) : ('type')}
+##    water_biome.structures = {}
+##
+##    for biome in biome_list:
+##        if isinstance(biome.structures, dict):
+##            structure_list = biome.structures.iteritems()
+##        for structure, type in structure_list:
+##            model = structure[0]
+##            settings = structure[1]
+##            if type is 'tree':
+##                spawn_trees(model, *settings)
+##            elif type is 'bunker':
+##                spawn_bunkers(model, *settings)
+##            elif type is 'bush':
+##                spawn_bushes(model, *settings)
+##    rect_destroy(256,256 + 64,256,256 + 64,53,10)
+    
+    return vxl

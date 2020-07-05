@@ -1,0 +1,5 @@
+name = 'New Fort'
+version = '1'
+author = 'JoJoe Stinky AKA Jason Bonham alii3d.com\blog\ for more maps.'
+description = ('2 new forts, lots of trees.'
+               'Lovely stroll on the island')

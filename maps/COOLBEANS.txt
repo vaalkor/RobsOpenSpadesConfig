@@ -1,0 +1,4 @@
+name = 'CoolBeans'
+version = '1.0'
+author = 'CowNorris'
+description = ('A gen-like terrain. But prettier and without a river. A conversion from a SketchUp model.')
